@@ -122,15 +122,31 @@ export async function getAccessToken(): Promise<string | null> {
   return typeof token === "string" && token.length > 0 ? token : null;
 }
 
-/** End the session server-side, so the cookie stops authenticating. */
-export async function signOut(): Promise<void> {
+/**
+ * End the session server-side, so the cookie stops authenticating.
+ *
+ * The JSON content-type and body are required: a bare POST is answered with
+ * 415 Unsupported Media Type, and because the caller navigates to /sign-in
+ * regardless, that failure is invisible -- the user appears to be signed out
+ * while the session cookie is still valid and still returns their account from
+ * /get-session. Measured: bare POST -> 415, JSON POST -> 200 with the session
+ * cleared. `content-type` is safe to send here; it is an unexpected *custom*
+ * header that breaks the credentialed CORS preflight, not this one.
+ *
+ * Returns whether the session was actually ended, so a caller can tell the
+ * difference rather than assuming.
+ */
+export async function signOut(): Promise<boolean> {
   try {
-    await fetch(`${AUTH_URL}/sign-out`, {
+    const response = await fetch(`${AUTH_URL}/sign-out`, {
       method: "POST",
       credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: "{}",
     });
+    return response.ok;
   } catch {
-    // Nothing useful to do here; the caller navigates to /sign-in regardless.
+    return false;
   }
 }
 
