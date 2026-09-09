@@ -27,26 +27,29 @@ A private, per-user tracker for the people I want to stay connected with at Berk
 
 ## Screenshots
 
-> **Provenance.** `sign-in-light.png` and `contacts-mobile.png` are real
-> captures, taken on a phone against the deployed app with real rows in
-> Postgres. The remaining images still come from a local build with the Data
-> API mocked -- real components and real CSS, but not real data. Either way the
-> deployed app has been verified by measurement rather than by screenshot: see
+> **Provenance.** Every image below that the rubric asks for is a real capture
+> from the deployed app, showing real rows in Postgres: the contact list
+> (desktop and phone), the add/edit dialog, the invalid-input error, and the
+> sign-in screen. Four supporting images are not, and are labelled where they
+> appear: the empty state, the error state, and the two dark-theme shots still
+> come from a local build with the Data API mocked -- real components and real
+> CSS, but not real data. The deployed app has in any case been verified by
+> measurement rather than by screenshot: see
 > [Production verification](#production-verification).
 
-| Contact list (desktop) | Contact list (mobile) |
+| Contact list, desktop (live) | Contact list, phone (live) |
 | --- | --- |
 | ![Contact list on desktop](docs/screenshots/contacts-desktop.png) | ![Contact list on mobile](docs/screenshots/contacts-mobile.png) |
 
-| Add / edit dialog | Invalid input failing safely |
+| Add / edit dialog (live) | Invalid input failing safely (live) |
 | --- | --- |
 | ![Add contact dialog](docs/screenshots/contact-form.png) | ![Name is required error](docs/screenshots/validation-error.png) |
 
-| Empty state | Error state |
+| Empty state (mocked build) | Error state (mocked build) |
 | --- | --- |
 | ![No contacts yet](docs/screenshots/contacts-empty.png) | ![Something went wrong](docs/screenshots/contacts-error.png) |
 
-| Sign in | Dark theme |
+| Sign in (live) | Dark theme (mocked build) |
 | --- | --- |
 | ![Sign in screen](docs/screenshots/sign-in-light.png) | ![Contact list in dark mode](docs/screenshots/contacts-dark.png) |
 
