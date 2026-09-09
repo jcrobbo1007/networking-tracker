@@ -455,23 +455,36 @@ code -- the script never touches this app's API routes.
 # 1. Push to GitHub
 git push origin main
 
-# 2. Import the repo at vercel.com/new, or:
-npx vercel --prod
+# 2. Create the Vercel project and link it, WITHOUT deploying yet.
+#    Order matters: NEXT_PUBLIC_ values are inlined at build time, and
+#    src/lib/neon-client.ts throws when they are missing. Deploying first
+#    would fail the build while prerendering /sign-in, rather than merely
+#    producing a broken page.
+npx vercel link --yes
 
-# 3. Add production environment variables in Vercel
-#    (Project -> Settings -> Environment Variables)
-#      NEXT_PUBLIC_NEON_AUTH_URL
-#      NEXT_PUBLIC_NEON_DATA_API_URL
-#    DATABASE_URL is NOT needed in Vercel: the app never uses it.
+# 3. Add the two public variables to Production.
+#    Vercel refuses a bare NEXT_PUBLIC_ value and demands an explicit choice;
+#    `--type config` is the correct one here, because these URLs are addresses
+#    rather than credentials. DATABASE_URL is NOT added: the app never reads it.
+npx vercel env add NEXT_PUBLIC_NEON_AUTH_URL     production --type config
+npx vercel env add NEXT_PUBLIC_NEON_DATA_API_URL production --type config
 
-# 4. Trust the deployed domain in Neon Auth, or sign-in fails with
-#    "invalid domain"
+# 4. Deploy
+npx vercel --prod --yes
+
+# 5. New Vercel projects can have Vercel Authentication enabled by default,
+#    which 302s every request to vercel.com/sso-api -- the deployment answers
+#    200 to `curl -L` because that is the login page, so check it in a browser,
+#    not by status code alone. Turn it off so the URL is publicly openable.
+#    This is not what protects the data; RLS is.
+npx vercel project protection disable networking-tracker --sso
+
+# 6. Trust the deployed domain in Neon Auth, or sign-in fails there
 neon neon-auth domain add https://<your-app>.vercel.app
 neon neon-auth domain list
 
-# 5. Redeploy so the new env vars are baked into the client bundle
-#    (NEXT_PUBLIC_ variables are inlined at build time, not read at runtime)
-npx vercel --prod
+# 7. Re-run the two-account privacy proof against the deployed origin
+PRIVACY_TEST_ORIGIN=https://<your-app>.vercel.app npm run test:privacy
 ```
 
 Then, against the live URL: open it in a private window, create two accounts, and repeat the privacy test in production.
