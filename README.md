@@ -19,12 +19,19 @@ A private, per-user tracker for the people I want to stay connected with at Berk
 - [Environment variables](#environment-variables)
 - [Tests](#tests)
 - [Grading evidence](#grading-evidence)
+- [Production verification](#production-verification)
 - [Deployment](#deployment)
 - [Known limitations, and what I would do next](#known-limitations-and-what-i-would-do-next)
 
 ---
 
 ## Screenshots
+
+> **Provenance.** The images below were captured against a local build with the
+> Data API mocked. They are the real components and the real CSS, but not real
+> rows. The deployed app has been verified separately and by measurement -- see
+> [Production verification](#production-verification) -- and these images are
+> due to be replaced with captures from the live URL.
 
 | Contact list (desktop) | Contact list (mobile) |
 | --- | --- |
@@ -446,6 +453,50 @@ code -- the script never touches this app's API routes.
 | One invalid input failing safely | ![Name is required](docs/screenshots/validation-error.png) |
 | Contacts schema and RLS ownership rule explained | [Database schema](#database-schema) and [Authentication and RLS ownership](#authentication-and-rls-ownership) |
 | No committed secret values | `.gitignore` excludes `.env*` (except `.env.example`, which holds placeholders only); `grep -rn "DATABASE_URL" src/` returns nothing; the built client bundle contains no connection string |
+
+---
+
+## Production verification
+
+Run against the deployed app at the live URL, signed in as a real account.
+Every line below is a measured result rather than an expectation.
+
+| Check | Method | Result |
+| --- | --- | --- |
+| App reachable without a login wall | `curl` + browser | `200`, no redirect to `vercel.com/sso-api` |
+| Sign-up rejects a duplicate address | UI | `AuthApiError: User already exists. Use another email.` |
+| Session survives a reload | UI | `/contacts` renders "Signed in as ..." after a full refresh |
+| Create | `POST /api/contacts` | `201`, row rendered |
+| Read | `GET /api/contacts?sort=created_at&direction=desc` | `200` |
+| Update | `PATCH /api/contacts/<id>` | `200`, "Contact updated." |
+| Delete | `DELETE /api/contacts/<id>` | `200`, row gone from the list |
+| Unknown / other-user id | `DELETE /api/contacts/<random uuid>` | **`404`**, not `403` |
+| Blank name rejected | UI, whitespace-only name | `Name is required`, inline, no request sent |
+| Two-account isolation | `npm run test:privacy` | 12 passed, 0 failed |
+
+The `404` matters: a `403` would confirm that someone else's contact exists.
+It falls out of RLS returning zero rows, not from an ownership check in code --
+there is no such check anywhere in the handlers.
+
+### Two constraints found only against a live backend
+
+Both were discovered by measurement, and both are recorded in the code:
+
+**The session cookie is cross-site.** Managed Better Auth issues it on its own
+`*.neon.tech` origin, so the browser sends it only when a request sets
+`credentials: "include"`. The client library's session read does not, so
+`GET /get-session` answered `200` with the body `null` -- 753 bytes with
+credentials, 4 bytes without. The app concluded nobody was signed in, and
+signing in bounced straight back to `/sign-in` in a loop, with every request
+returning `200` the whole way. `src/lib/neon-client.ts` therefore calls the Auth
+HTTP endpoints directly for session and token reads. Passing `fetchOptions` to
+the adapter does not help: `createClient` invokes the adapter builder as
+`(url, fetchOptions)` with its own options and discards the factory's.
+
+**Credentialed requests must stay "simple".** Neon Auth accepts a credentialed
+cross-origin request, but one carrying an unexpected custom header fails its
+CORS preflight outright (`TypeError: Failed to fetch`). Those reads therefore
+send no custom headers, and none should be added.
 
 ---
 

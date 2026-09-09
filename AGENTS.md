@@ -114,18 +114,40 @@ npx tsc --noEmit
 `GET /api/contacts` returns 401, and neither `src/` nor the built client bundle
 contains a Postgres connection string.
 
-**Never run against a real Neon backend.** The app was built in a sandbox whose
-egress allowlist returned 403 for every `*.neon.tech` host, so `neon login`,
-`neon deploy`, the migration and the privacy test have never executed. Treat the
-Neon integration as written-but-untested. First contact with a real backend is
-where surprises will appear — most likely candidates:
+**Now verified against a real Neon backend.** The project is linked to
+`bitter-moon-70893420` / `production`, Managed Better Auth and the Data API are
+provisioned, the migration is applied (`enabled: true forced: true`, four
+policies), `npm run test:privacy` passes 12/12, and the app is deployed and
+exercised end to end on Vercel: create `201`, read `200`, update `200`, delete
+`200`, unknown id `404`.
 
-- the `authenticated` role may not exist until the Data API is enabled, which
-  would make the migration's `grant` fail
-- `neon deploy` may write env var names that differ from what the app expects
-  (see below); map them, do not rename what the app reads
-- the exact JSON shape Better Auth returns from `/token` and `/sign-in/email`
-  is assumed by `scripts/privacy-test.mjs` and may need adjusting
+Three of the four predicted surprises did appear, and one did not:
+
+- The `authenticated` role *did* exist -- provisioning the Data API before
+  migrating is what avoided the `grant` failure.
+- `neon deploy` *did* write different env var names. It writes
+  `NEON_AUTH_BASE_URL` and `NEON_DATA_API_URL`; the app reads the
+  `NEXT_PUBLIC_` names. Map them in `.env.local`; do not rename what the code
+  expects.
+- The Better Auth response shapes *were* wrong in `scripts/privacy-test.mjs`.
+  It needs an `Origin` header (403 `MISSING_OR_NULL_ORIGIN` without one), and
+  `/sign-in/email` returns an opaque session token, not a JWT -- exchange the
+  session **cookie** at `/token` for the real JWT.
+- Unpredicted, and the expensive one: the session cookie is cross-site, so
+  every session read needs `credentials: "include"`. Without it `/get-session`
+  returns `200` with the body `null` and the app loops between `/contacts` and
+  `/sign-in` while every request looks healthy. See the long comment in
+  `src/lib/neon-client.ts`. Related: a credentialed cross-origin request with
+  an unexpected custom header fails CORS preflight, so those reads must send
+  no custom headers.
+
+Two more traps worth knowing:
+
+- `neon neon-auth domain allow-localhost` needs the `enable` sub-command. Bare,
+  it exits 0 and silently does nothing.
+- A deployment-specific Vercel URL is a different origin from the project
+  alias, and Neon Auth rejects it with `INVALID_ORIGIN` unless separately
+  trusted. Use the stable alias.
 
 Screenshots in `docs/screenshots/` were captured locally with the API mocked.
 They show real components and real CSS but not real data — replace them with
