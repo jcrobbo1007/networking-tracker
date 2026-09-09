@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { auth } from "@/lib/neon-client";
+import { useSessionGate } from "@/lib/neon-client";
 import { ContactsView } from "@/components/contacts-view";
 import { Spinner } from "@/components/ui";
 
@@ -17,15 +17,15 @@ import { Spinner } from "@/components/ui";
  */
 export default function ContactsPage() {
   const router = useRouter();
-  const { data: session, isPending } = auth.useSession();
+  const { settled, user } = useSessionGate();
 
   React.useEffect(() => {
-    if (!isPending && !session?.user) {
+    if (settled && !user) {
       router.replace("/sign-in");
     }
-  }, [isPending, session, router]);
+  }, [settled, user, router]);
 
-  if (isPending) {
+  if (!settled) {
     return (
       <div className="flex flex-1 items-center justify-center py-24">
         <Spinner className="size-6 text-ink-subtle" />
@@ -34,12 +34,10 @@ export default function ContactsPage() {
     );
   }
 
-  if (!session?.user) {
+  if (!user) {
     // The effect above is already redirecting; render nothing in the meantime.
     return null;
   }
 
-  return (
-    <ContactsView userName={session.user.name || session.user.email || "you"} />
-  );
+  return <ContactsView userName={user.name || user.email || "you"} />;
 }

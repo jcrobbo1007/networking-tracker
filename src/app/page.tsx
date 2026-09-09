@@ -3,18 +3,18 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { auth } from "@/lib/neon-client";
+import { useSessionGate } from "@/lib/neon-client";
 import { Spinner } from "@/components/ui";
 
 /** Send people to the right place: their contacts, or the sign-in screen. */
 export default function HomePage() {
   const router = useRouter();
-  const { data: session, isPending } = auth.useSession();
+  const { settled, user } = useSessionGate();
 
   React.useEffect(() => {
-    if (isPending) return;
-    router.replace(session?.user ? "/contacts" : "/sign-in");
-  }, [isPending, session, router]);
+    if (!settled) return;
+    router.replace(user ? "/contacts" : "/sign-in");
+  }, [settled, user, router]);
 
   return (
     <div className="flex flex-1 items-center justify-center py-24">

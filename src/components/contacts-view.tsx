@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { auth, getAccessToken } from "@/lib/neon-client";
+import { getAccessToken, signOut } from "@/lib/neon-client";
 import {
   Alert,
   Button,
@@ -245,7 +245,7 @@ export function ContactsView({ userName }: { userName: string }) {
   async function handleSignOut() {
     setSigningOut(true);
     try {
-      await auth.signOut();
+      await signOut();
       router.push("/sign-in");
       router.refresh();
     } catch (cause) {
