@@ -88,8 +88,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
       router.refresh();
     } catch (cause) {
       console.error(cause);
+      // The Neon auth client THROWS for API-level failures (AuthApiError, e.g.
+      // "User already exists") rather than returning { error }, so the branch
+      // above never sees them. Reporting everything here as a connectivity
+      // problem hides the actual reason and sends people to check a working
+      // network. A genuine transport failure surfaces as a TypeError from
+      // fetch; anything else carries a message worth showing.
+      const isTransportFailure =
+        !(cause instanceof Error) || cause.name === "TypeError";
+      const apiMessage =
+        cause instanceof Error && cause.message.trim().length > 0
+          ? cause.message
+          : null;
+
       setError(
-        "Could not reach the authentication service. Check your connection and try again.",
+        isTransportFailure || !apiMessage
+          ? "Could not reach the authentication service. Check your connection and try again."
+          : apiMessage,
       );
     } finally {
       setSubmitting(false);
