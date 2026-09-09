@@ -13,11 +13,17 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
 import pg from "pg";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const migrationsDir = join(here, "..", "db", "migrations");
+const repoRoot = join(here, "..");
+const migrationsDir = join(repoRoot, "db", "migrations");
+
+// `neon deploy` writes .env.local. A bare `import "dotenv/config"` only reads
+// .env, so load both explicitly, .env.local first (dotenv keeps the first value
+// it sees for a key, so .env.local wins).
+loadEnv({ path: [join(repoRoot, ".env.local"), join(repoRoot, ".env")], quiet: true });
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

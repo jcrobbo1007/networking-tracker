@@ -289,15 +289,21 @@ neon link            # writes a gitignored .neon file
 #    then pull the branch's env vars into .env.local
 neon deploy
 
-# 4. Create .env.local from the template if `neon deploy` did not,
-#    and confirm the two NEXT_PUBLIC_ variables are set
-cp .env.example .env.local   # then fill in real values
+# 4. `neon deploy` writes .env.local, but under Neon's own variable names:
+#    NEON_AUTH_BASE_URL and NEON_DATA_API_URL. This app reads the
+#    NEXT_PUBLIC_ names, so add them alongside (same values, and both are
+#    public by design -- see Environment variables below):
+#      NEXT_PUBLIC_NEON_AUTH_URL      = NEON_AUTH_BASE_URL
+#      NEXT_PUBLIC_NEON_DATA_API_URL  = NEON_DATA_API_URL
 
 # 5. Apply the schema and RLS policies
 npm run db:migrate
 
 # 6. Allow sign-in from localhost during development
-neon neon-auth domain allow-localhost
+#    (`allow-localhost` needs the `enable` sub-command; without it the CLI
+#    exits 0 and silently does nothing)
+neon neon-auth domain allow-localhost enable
+neon neon-auth domain allow-localhost get   # -> Allow localhost: true
 
 # 7. Run it
 npm run dev          # http://localhost:3000
@@ -384,7 +390,47 @@ It checks that:
 9. A request with **no token** returns no rows
 10. A blank name and an invalid priority are rejected by the database's `CHECK` constraints, independently of the API routes
 
-_(Paste the output of `npm run test:privacy` against the deployed database here.)_
+Run against the live Neon `production` branch (project `bitter-moon-70893420`):
+
+```
+Two-account privacy test
+Data API: https://ep-wild-snow-aku1yw6o.apirest.c-3.us-west-2.aws.neon.tech/neondb/rest/v1
+
+Signing in two accounts:
+  User A: rls-a-b0d3b3be@example.com  (user id 03a39422-c5da-4065-911e-c2cbbced41bc)
+  User B: rls-b-b0d3b3be@example.com  (user id 209f49e1-357e-4f1b-82a3-89f79ed79554)
+
+User A creates a private contact:
+  created e876aa1f-cb2f-4ac5-9e9c-75413ea45732
+  PASS  user_id defaulted to User A's id without the client sending it
+
+User A can reach their own row:
+  PASS  SELECT returns the row for its owner
+
+User B attacks User A's row:
+  PASS  B's full contact list does not contain A's row
+  PASS  SELECT by A's exact row id returns nothing for B
+  PASS  UPDATE of A's row changes nothing for B
+  PASS  DELETE of A's row removes nothing for B
+  PASS  INSERT with user_id spoofed to A is rejected
+
+User A cannot give a row away:
+  PASS  UPDATE that reassigns user_id to B is rejected
+  PASS  the row still belongs to A afterwards
+
+Signed-out requests:
+  PASS  SELECT with no token returns no rows
+
+Database-level validation (independent of the API routes):
+  PASS  blank name rejected by the CHECK constraint
+  PASS  invalid priority rejected by the CHECK constraint
+
+12 passed, 0 failed
+```
+
+The two assertions that carry the most weight are the spoofed `INSERT` and the
+attempted ownership transfer. Both are refused by Postgres, not by application
+code -- the script never touches this app's API routes.
 
 ---
 

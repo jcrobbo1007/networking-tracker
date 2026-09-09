@@ -17,7 +17,15 @@
  * accounts; otherwise throwaway accounts are created.
  */
 import { randomUUID } from "node:crypto";
-import "dotenv/config";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { config as loadEnv } from "dotenv";
+
+// `neon deploy` writes .env.local; a bare `import "dotenv/config"` only reads
+// .env. Load both, .env.local first.
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+loadEnv({ path: [join(repoRoot, ".env.local"), join(repoRoot, ".env")], quiet: true });
 
 const AUTH_URL = process.env.NEXT_PUBLIC_NEON_AUTH_URL;
 const DATA_URL = process.env.NEXT_PUBLIC_NEON_DATA_API_URL;
@@ -49,10 +57,17 @@ function check(description, condition, detail = "") {
 
 // --- auth -------------------------------------------------------------------
 
+// Better Auth enforces a trusted-origin check on its endpoints and rejects a
+// request with no Origin header (403 MISSING_OR_NULL_ORIGIN). A browser sets
+// this automatically; Node's fetch does not, so send it explicitly. It must be
+// an origin Neon Auth trusts: localhost (see `neon neon-auth domain
+// allow-localhost enable`) or a domain added with `neon neon-auth domain add`.
+const ORIGIN = process.env.PRIVACY_TEST_ORIGIN ?? "http://localhost:3000";
+
 async function authPost(path, body) {
   const response = await fetch(`${authUrl}/${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", Origin: ORIGIN },
     body: JSON.stringify(body),
   });
   const text = await response.text();
@@ -62,7 +77,12 @@ async function authPost(path, body) {
   } catch {
     json = { raw: text };
   }
-  return { status: response.status, body: json };
+  // Better Auth issues the session as a Set-Cookie, and /token authenticates by
+  // that cookie rather than by a bearer session token.
+  const cookies = (response.headers.getSetCookie?.() ?? [])
+    .map((c) => c.split(";")[0])
+    .join("; ");
+  return { status: response.status, body: json, cookies };
 }
 
 async function signIn(label, email, password, name) {
@@ -76,11 +96,37 @@ async function signIn(label, email, password, name) {
     );
   }
 
-  const token = result.body?.token ?? result.body?.session?.token;
+  const sessionToken = result.body?.token ?? result.body?.session?.token;
   const userId = result.body?.user?.id;
-  if (!token || !userId) {
+  if (!sessionToken || !userId) {
     throw new Error(
       `Signed in ${label} but found no token/user id in the response: ${JSON.stringify(result.body)}`,
+    );
+  }
+
+  // The session token is NOT what Postgres verifies -- it is an opaque string,
+  // not a JWT. Exchange the session for a short-lived JWT at Better Auth's
+  // /token endpoint, whose `sub` claim is the user id; that is what the Data
+  // API validates and what SQL reads back as auth.user_id(). This mirrors
+  // `auth.token()` in src/lib/neon-client.ts. /token authenticates by the
+  // session cookie, so forward it rather than sending a bearer token.
+  if (!result.cookies) {
+    throw new Error(`Signed in ${label} but got no session cookie back.`);
+  }
+  const jwtResponse = await fetch(`${authUrl}/token`, {
+    headers: { Cookie: result.cookies, Origin: ORIGIN },
+  });
+  const jwtText = await jwtResponse.text();
+  let jwtBody;
+  try {
+    jwtBody = JSON.parse(jwtText);
+  } catch {
+    jwtBody = { raw: jwtText };
+  }
+  const token = jwtBody?.token ?? jwtBody?.data?.token;
+  if (!token) {
+    throw new Error(
+      `Could not get a JWT for ${label}: ${jwtResponse.status} ${JSON.stringify(jwtBody)}`,
     );
   }
 
