@@ -27,11 +27,12 @@ A private, per-user tracker for the people I want to stay connected with at Berk
 
 ## Screenshots
 
-> **Provenance.** The images below were captured against a local build with the
-> Data API mocked. They are the real components and the real CSS, but not real
-> rows. The deployed app has been verified separately and by measurement -- see
-> [Production verification](#production-verification) -- and these images are
-> due to be replaced with captures from the live URL.
+> **Provenance.** These images are being replaced with captures from the live
+> URL as they are taken. `sign-in-light.png` is a real capture, taken on a
+> phone against the deployed app. The remainder still come from a local build
+> with the Data API mocked -- real components and real CSS, but not real rows.
+> Either way the deployed app has been verified by measurement rather than by
+> screenshot: see [Production verification](#production-verification).
 
 | Contact list (desktop) | Contact list (mobile) |
 | --- | --- |
