@@ -2,7 +2,7 @@
 
 A private, per-user tracker for the people I want to stay connected with at Berkeley. Each signed-in user gets their own contact list — name, company, role, where we met, notes, and a priority — which they can create, view, sort, filter, edit and delete. Data lives in Neon (Lakebase) Postgres and survives refreshes, sessions and devices. The interesting part of this project is not the CRUD; it is that **the browser is allowed to talk to the database's public REST endpoint directly, and Row Level Security is what makes that safe**. Ownership is enforced by Postgres policies keyed on the JWT's subject claim, not by application code, so no bug in a route handler can expose one user's contacts to another.
 
-**Live app:** _(paste the Vercel URL here after deploying — see [Deployment](#deployment))_
+**Live app:** <https://networking-tracker-energy-43a6.vercel.app>
 
 ---
 
@@ -390,18 +390,19 @@ It checks that:
 9. A request with **no token** returns no rows
 10. A blank name and an invalid priority are rejected by the database's `CHECK` constraints, independently of the API routes
 
-Run against the live Neon `production` branch (project `bitter-moon-70893420`):
+Run against the live Neon `production` branch (project `bitter-moon-70893420`),
+with the deployed origin `https://networking-tracker-energy-43a6.vercel.app`:
 
 ```
 Two-account privacy test
 Data API: https://ep-wild-snow-aku1yw6o.apirest.c-3.us-west-2.aws.neon.tech/neondb/rest/v1
 
 Signing in two accounts:
-  User A: rls-a-b0d3b3be@example.com  (user id 03a39422-c5da-4065-911e-c2cbbced41bc)
-  User B: rls-b-b0d3b3be@example.com  (user id 209f49e1-357e-4f1b-82a3-89f79ed79554)
+  User A: rls-a-d7343af7@example.com  (user id c61140a4-a713-4e06-a1d4-ae30f121d7b9)
+  User B: rls-b-d7343af7@example.com  (user id 2e25d99a-eefc-4274-8c60-ee41aeacc2f3)
 
 User A creates a private contact:
-  created e876aa1f-cb2f-4ac5-9e9c-75413ea45732
+  created 13ade0f3-e5d1-48d7-8ea9-065b78342e91
   PASS  user_id defaulted to User A's id without the client sending it
 
 User A can reach their own row:
