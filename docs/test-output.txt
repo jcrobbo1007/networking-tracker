@@ -1,0 +1,32 @@
+ RUN  v3.2.7 /home/claude/networking-tracker
+ ✓ tests/validation.test.ts > validateContactInput -- name > accepts a fully populated contact 9ms
+ ✓ tests/validation.test.ts > validateContactInput -- name > rejects an empty name with a clear message 1ms
+ ✓ tests/validation.test.ts > validateContactInput -- name > rejects a whitespace-only name (not just a zero-length string) 1ms
+ ✓ tests/validation.test.ts > validateContactInput -- name > rejects a missing name 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- name > rejects a name over 200 characters 1ms
+ ✓ tests/validation.test.ts > validateContactInput -- name > trims surrounding whitespace from an otherwise valid name 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > accepts high 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > accepts medium 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > accepts low 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > rejects 'urgent' 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > rejects 'HIGH' 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > rejects '' 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > rejects 1 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > rejects null 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- priority > rejects a missing priority 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- optional fields > accepts a contact with only the required fields 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- optional fields > normalises blank optional fields to null rather than empty strings 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- optional fields > rejects notes longer than 2000 characters 0ms
+ ✓ tests/validation.test.ts > validateContactInput -- ownership cannot be set by the client > strips user_id from the payload instead of trusting it 1ms
+ ✓ tests/validation.test.ts > validateContactInput -- ownership cannot be set by the client > strips a client-supplied id 0ms
+ ✓ tests/validation.test.ts > validateContactUpdate > accepts a single-field edit 1ms
+ ✓ tests/validation.test.ts > validateContactUpdate > still rejects an invalid priority on a partial update 0ms
+ ✓ tests/validation.test.ts > validateContactUpdate > still rejects a blanked-out name on a partial update 0ms
+ ✓ tests/validation.test.ts > validateContactUpdate > rejects an empty patch 0ms
+ ✓ tests/validation.test.ts > sort and filter allow-lists > accepts known sort fields 0ms
+ ✓ tests/validation.test.ts > sort and filter allow-lists > rejects an unknown sort field, so it can never reach the query string 0ms
+ ✓ tests/validation.test.ts > sort and filter allow-lists > guards priority filter values 0ms
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  06:07:24
+   Duration  550ms (transform 100ms, setup 0ms, collect 170ms, tests 22ms, environment 0ms, prepare 75ms)

@@ -30,8 +30,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files -- real values never get committed.
+# .env.example is the one deliberate exception: it documents the variable
+# NAMES with placeholder values only, and the assignment requires it.
 .env*
+!.env.example
+
+# Neon CLI: holds the linked project/branch ids
+.neon
 
 # vercel
 .vercel
