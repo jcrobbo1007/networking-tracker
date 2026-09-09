@@ -27,12 +27,12 @@ A private, per-user tracker for the people I want to stay connected with at Berk
 
 ## Screenshots
 
-> **Provenance.** These images are being replaced with captures from the live
-> URL as they are taken. `sign-in-light.png` is a real capture, taken on a
-> phone against the deployed app. The remainder still come from a local build
-> with the Data API mocked -- real components and real CSS, but not real rows.
-> Either way the deployed app has been verified by measurement rather than by
-> screenshot: see [Production verification](#production-verification).
+> **Provenance.** `sign-in-light.png` and `contacts-mobile.png` are real
+> captures, taken on a phone against the deployed app with real rows in
+> Postgres. The remaining images still come from a local build with the Data
+> API mocked -- real components and real CSS, but not real data. Either way the
+> deployed app has been verified by measurement rather than by screenshot: see
+> [Production verification](#production-verification).
 
 | Contact list (desktop) | Contact list (mobile) |
 | --- | --- |
@@ -475,6 +475,7 @@ Every line below is a measured result rather than an expectation.
 | Blank name rejected | UI, whitespace-only name | `Name is required`, inline, no request sent |
 | Two-account isolation (script) | `npm run test:privacy` | 12 passed, 0 failed |
 | Two-account isolation (live UI) | Two real accounts in two browsers | Account A: 2 contacts. Account B: `200` and **0 rows** |
+| Signed-in use on a real phone | iOS, live URL | Signs in and lists contacts; the cross-site session cookie is not blocked |
 | Sign-out really ends the session | Click Sign out, then `GET /get-session` | Session cleared (see the 415 note below) |
 
 The `404` matters: a `403` would confirm that someone else's contact exists.
