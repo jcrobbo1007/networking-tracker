@@ -472,13 +472,21 @@ Every line below is a measured result rather than an expectation.
 | Delete | `DELETE /api/contacts/<id>` | `200`, row gone from the list |
 | Unknown / other-user id | `DELETE /api/contacts/<random uuid>` | **`404`**, not `403` |
 | Blank name rejected | UI, whitespace-only name | `Name is required`, inline, no request sent |
-| Two-account isolation | `npm run test:privacy` | 12 passed, 0 failed |
+| Two-account isolation (script) | `npm run test:privacy` | 12 passed, 0 failed |
+| Two-account isolation (live UI) | Two real accounts in two browsers | Account A: 2 contacts. Account B: `200` and **0 rows** |
+| Sign-out really ends the session | Click Sign out, then `GET /get-session` | Session cleared (see the 415 note below) |
 
 The `404` matters: a `403` would confirm that someone else's contact exists.
 It falls out of RLS returning zero rows, not from an ownership check in code --
 there is no such check anywhere in the handlers.
 
-### Two constraints found only against a live backend
+A note on that live two-account check: it happened by accident, which is the
+useful part. Two browsers were signed in to two different accounts at the same
+time. The account holding two contacts saw both; the other asked the same
+endpoint with its own JWT and got an empty list. Neither request was special --
+the difference was made in Postgres.
+
+### Three things found only against a live backend
 
 Both were discovered by measurement, and both are recorded in the code:
 
@@ -492,6 +500,14 @@ returning `200` the whole way. `src/lib/neon-client.ts` therefore calls the Auth
 HTTP endpoints directly for session and token reads. Passing `fetchOptions` to
 the adapter does not help: `createClient` invokes the adapter builder as
 `(url, fetchOptions)` with its own options and discards the factory's.
+
+**Sign-out silently did nothing.** The request carried no content-type, and
+Better Auth answers a bare `POST /sign-out` with `415`. The UI navigates to
+`/sign-in` regardless and the error was swallowed, so the user appeared signed
+out while the session cookie stayed valid and `/get-session` still returned
+their account -- reopening `/contacts` signed them straight back in. The request
+now sends `content-type: application/json` and a body, and reports whether it
+succeeded.
 
 **Credentialed requests must stay "simple".** Neon Auth accepts a credentialed
 cross-origin request, but one carrying an unexpected custom header fails its
