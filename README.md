@@ -476,6 +476,10 @@ Every line below is a measured result rather than an expectation.
 | Delete | `DELETE /api/contacts/<id>` | `200`, row gone from the list |
 | Unknown / other-user id | `DELETE /api/contacts/<random uuid>` | **`404`**, not `403` |
 | Blank name rejected | UI, whitespace-only name | `Name is required`, inline, no request sent |
+| Account details unreachable by another user | As User B, query `users`, `users_sync`, `accounts`, `sessions`, `verification`, `jwks` via the Data API | `404` on every one -- the auth schema is not exposed |
+| Anonymous access to the Data API | No JWT | Refused: "missing authentication credentials" -- it will not even describe itself |
+| Password rules enforced server-side | Sign up with 1, 3 and 7 character passwords via the API, bypassing the browser | `400` on all three |
+| Session cookie protections | Inspect `Set-Cookie` on sign-in | `HttpOnly; Secure; SameSite=None; Partitioned`; a failed sign-in sets no cookie |
 | Two-account isolation (script) | `npm run test:privacy` | 12 passed, 0 failed |
 | Two-account isolation (live UI) | Two real accounts in two browsers | Account A: 2 contacts. Account B: `200` and **0 rows** |
 | Signed-in use on a real phone | iOS, live URL | Signs in and lists contacts; the cross-site session cookie is not blocked |
@@ -567,7 +571,15 @@ Then, against the live URL: open it in a private window, create two accounts, an
 
 **Route protection is client-side.** `/contacts` checks the session in a `useEffect` and redirects if there is none. A signed-out visitor briefly sees a spinner rather than being stopped at the edge. This leaks no data — there is nothing to render without a JWT, and RLS refuses the underlying rows regardless — but it is a worse experience than a server-side redirect. Next 16 renamed `middleware.ts` to `proxy.ts`; moving the session check there would fix the flash. I chose the simpler path deliberately, since a proxy that mishandles the session is a worse outcome than a brief spinner.
 
-**Auth is browser-direct rather than proxied.** Using `createClient`'s two-URL object form means the browser talks to Managed Better Auth itself, and the session is held by the Better Auth client rather than in an `httpOnly` cookie set by my own server. Neon's `createNeonAuth` + `authApiHandler` would proxy auth through `/api/auth/[...path]`, keep `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` server-only, and put the session in an `httpOnly` cookie — meaningfully better against XSS. That is the first thing I would change with more time.
+**Auth is browser-direct rather than proxied.** Using `createClient`'s two-URL object form means the browser talks to Managed Better Auth itself, so the session cookie is set by Neon's auth server on its own origin rather than by this app. An earlier draft of this section claimed the session was therefore not in an `httpOnly` cookie. That was wrong, and measuring it is what corrected it — the cookie is issued as:
+
+```
+__Secure-neon-auth.session_token=…; HttpOnly; Secure; SameSite=None; Partitioned; Max-Age=604800
+```
+
+so script cannot read it, it only travels over HTTPS, and `Partitioned` (CHIPS) scopes it to this top-level site. The residual XSS risk is narrower than "the session is stealable", but it is real: injected script running on this origin could call `/token` and mint a short-lived JWT, which is enough to read and write that user's contacts until it expires. It could not exfiltrate the long-lived session cookie itself.
+
+The real cost of browser-direct auth is the cross-site dependence: the whole session mechanism relies on a third-party cookie being allowed, which is what broke sign-in during deployment and which browsers keep tightening. Neon's `createNeonAuth` + `authApiHandler` would proxy auth through `/api/auth/[...path]`, keep `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` server-only, and make the session a first-party cookie. That is the first thing I would change with more time.
 
 **No pagination.** Every contact is fetched on every load. Fine at the scale this is for (tens to low hundreds); at a few thousand it wants keyset pagination on `(user_id, created_at, id)`, which the existing index already supports.
 
@@ -579,6 +591,6 @@ Then, against the live URL: open it in a private window, create two accounts, an
 
 **Only the validation layer is unit-tested.** The route handlers and React components have no automated coverage; the privacy script covers the security boundary end to end, but a Playwright suite driving the real sign-in and CRUD flows would catch regressions the current tests would miss.
 
-**No rate limiting** on sign-up or sign-in. Fine for a class project on a private URL; not fine for anything real.
+**No rate limiting** on sign-up or sign-in. Measured rather than assumed: six consecutive wrong passwords for one account returned `401` six times with no `429` and no lockout, so nothing here slows an online password-guessing attack. Fine for a class project; not fine for anything real. Note this is a property of the hosted auth service's defaults, not something this app can fix in application code — it would need a rate limiter in front of the auth endpoints.
 
 **The `where_met` field renders as "Met at {value}"**, which reads oddly for values like "Warm intro over email". A neutral label would be better.
